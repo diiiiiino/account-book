@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Co-Ledger V5 (修復版)</title>
+    <title>Co-Ledger V6 協作記帳</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
@@ -18,6 +18,8 @@
         .nav-link.active { background-color: #0d6efd !important; color: white !important; border-radius: 5px; }
         .invite-badge { cursor: pointer; transition: 0.2s; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); }
         .invite-badge:hover { background: rgba(255,255,255,0.4); }
+        .action-btn { cursor: pointer; transition: 0.2s; }
+        .action-btn:hover { transform: scale(1.1); }
     </style>
 </head>
 <body>
@@ -31,7 +33,7 @@
                 <p class="text-muted">多人協作．權責分明．自動結算</p>
             </div>
 
-            <ul class="nav nav-pills nav-fill mb-4" id="loginTab">
+            <ul class="nav nav-pills nav-fill mb-4">
                 <li class="nav-item">
                     <button class="nav-link active bg-light text-dark" data-bs-toggle="pill" data-bs-target="#tab-create" onclick="this.classList.add('active');">建立新帳本</button>
                 </li>
@@ -77,7 +79,6 @@
         <div class="container">
             <a class="navbar-brand" href="#"><i class="fa-solid fa-sack-dollar"></i> Co-Ledger</a>
             
-            <!-- 邀請代碼 -->
             <div class="d-none d-md-flex align-items-center text-white ms-3 px-3 py-1 rounded invite-badge" onclick="copyCode()" title="點擊複製連結">
                 <small class="me-2">邀請碼:</small>
                 <span id="nav-invite-code" class="fw-bold font-monospace">Loading</span>
@@ -151,25 +152,38 @@
 
             <!-- 圖表區 -->
             <div class="row mb-4">
-                <div class="col-md-8">
+                <!-- 左側：長條趨勢圖 -->
+                <div class="col-md-7">
                     <div class="card border-0 shadow-sm p-3 h-100">
                         <div class="d-flex justify-content-between">
                             <h5 class="mb-0">近六月趨勢</h5>
-                            <small class="text-muted">實際數據統計</small>
+                            <small class="text-muted">月份統計</small>
                         </div>
                         <div style="height: 250px;"><canvas id="mainChart"></canvas></div>
                     </div>
                 </div>
-                <div class="col-md-4">
-                    <div class="d-grid gap-2 h-100 align-content-center">
-                        <button class="btn btn-primary btn-lg p-4 shadow mb-3" onclick="openAddModal()">
-                            <i class="fa-solid fa-plus-circle fa-2x"></i><br>記一筆
-                        </button>
-                        <div class="text-center text-muted small">
-                            點擊上方按鈕開始您的第一筆記帳！
+                <!-- 右側：圓餅類別圖 -->
+                <div class="col-md-5">
+                    <div class="card border-0 shadow-sm p-3 h-100">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h5 class="mb-0">類別佔比</h5>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-danger active" onclick="updatePieChart('expense', this)">支出</button>
+                                <button class="btn btn-outline-success" onclick="updatePieChart('income', this)">收入</button>
+                            </div>
+                        </div>
+                        <div style="height: 220px; position: relative;">
+                             <canvas id="categoryChart"></canvas>
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <!-- 記一筆按鈕 (移到這裡比較顯眼) -->
+            <div class="d-grid gap-2 mb-4">
+                 <button class="btn btn-primary btn-lg p-3 shadow" onclick="openAddModal()">
+                    <i class="fa-solid fa-plus-circle me-2"></i> 記一筆
+                </button>
             </div>
 
             <!-- 未結清項目 -->
@@ -215,8 +229,8 @@
                     <table class="table table-striped align-middle mb-0">
                         <thead class="table-dark">
                             <tr>
+                                <th>操作</th>
                                 <th>日期</th>
-                                <th>時間</th>
                                 <th>類別</th>
                                 <th>事項</th>
                                 <th>總金額</th>
@@ -237,26 +251,29 @@
     </div>
 </div>
 
-<!-- Modal: 新增記帳 -->
+<!-- Modal: 新增/編輯記帳 -->
 <div class="modal fade" id="addModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title">📝 新增記帳</h5>
+                <h5 class="modal-title" id="modalTitle">📝 新增記帳</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <form id="addForm">
+                    <!-- 收支切換 -->
                     <div class="btn-group w-100 mb-3">
                         <input type="radio" class="btn-check" name="type" id="typeExp" value="expense" checked onchange="updateCategories()">
                         <label class="btn btn-outline-danger" for="typeExp">支出</label>
                         <input type="radio" class="btn-check" name="type" id="typeInc" value="income" onchange="updateCategories()">
                         <label class="btn btn-outline-success" for="typeInc">收入</label>
                     </div>
+
                     <div class="row g-2 mb-3">
                         <div class="col-6"><label class="form-label">日期</label><input type="date" class="form-control" id="inDate"></div>
                         <div class="col-6"><label class="form-label">時間</label><input type="time" class="form-control" id="inTime"></div>
                     </div>
+                    
                     <div class="mb-3"><label class="form-label">類別</label><select class="form-select" id="inCategory"></select></div>
                     <div class="mb-3"><label class="form-label">事項</label><input type="text" class="form-control" id="inItem" placeholder="例如: 晚餐"></div>
                     
@@ -289,7 +306,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                <button type="button" class="btn btn-primary" onclick="saveTransaction()">儲存</button>
+                <button type="button" class="btn btn-primary" id="btnSave" onclick="saveTransaction()">儲存</button>
             </div>
         </div>
     </div>
@@ -318,6 +335,9 @@
 <script>
     // --- 資料結構 ---
     let currentData = { user: '', code: '', members: [], transactions: [] };
+    // 編輯模式變數
+    let editingId = null;
+
     const expCats = ['飲食', '日常', '交通', '娛樂', '住宿', '其他', '未分類'];
     const incCats = ['薪水', '零用錢', '撲滿', '利息', '未分類'];
 
@@ -417,9 +437,12 @@
             else if (val < 0) { debtHtml += `<div class="text-danger">${m} 應付 $${Math.abs(val)}</div>`; noDebt = false; }
         }
         debtEl.innerHTML = noDebt ? '<span class="text-success">無欠款</span>' : debtHtml;
-        renderChart();
+        
+        renderChart(); // 趨勢圖
+        updatePieChart('expense'); // 類別圓餅圖 (預設支出)
     }
 
+    // --- 圖表 1: 趨勢長條圖 ---
     let myChart = null;
     function renderChart() {
         const ctx = document.getElementById('mainChart').getContext('2d');
@@ -445,11 +468,184 @@
         });
     }
 
+    // --- 圖表 2: 類別圓餅圖 ---
+    let pieChart = null;
+    function updatePieChart(type, btn) {
+        if(btn) {
+            btn.parentNode.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+
+        const ctx = document.getElementById('categoryChart').getContext('2d');
+        if(pieChart) pieChart.destroy();
+
+        // 統計類別數據
+        const catMap = {};
+        let hasData = false;
+        currentData.transactions.filter(t => t.type === type).forEach(t => {
+            catMap[t.category] = (catMap[t.category] || 0) + t.total;
+            hasData = true;
+        });
+
+        const labels = Object.keys(catMap);
+        const data = Object.values(catMap);
+        const bgColors = ['#ff6384', '#36a2eb', '#ffce56', '#4bc0c0', '#9966ff', '#ff9f40', '#c9cbcf'];
+
+        pieChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: hasData ? labels : ['無資料'],
+                datasets: [{
+                    data: hasData ? data : [1],
+                    backgroundColor: hasData ? bgColors : ['#e0e0e0']
+                }]
+            },
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'right' } } 
+            }
+        });
+    }
+
+    // --- 記帳操作 (新增/編輯/刪除) ---
+
+    // 1. 打開 Modal (判斷是新增還是編輯)
+    function openAddModal(txId = null) {
+        // 重置欄位
+        document.getElementById('addForm').reset();
+        document.getElementById('inDate').valueAsDate = new Date();
+        document.getElementById('inTime').value = new Date().toTimeString().slice(0,5);
+        document.getElementById('typeExp').checked = true;
+        updateCategories();
+        
+        editingId = txId; // 設定目前是否在編輯模式
+
+        const modalTitle = document.getElementById('modalTitle');
+        const btnSave = document.getElementById('btnSave');
+
+        if (txId) {
+            // --- 編輯模式 ---
+            modalTitle.innerText = "✏️ 編輯記帳";
+            btnSave.innerText = "更新";
+            
+            // 填入資料
+            const tx = currentData.transactions.find(t => t.id === txId);
+            if(tx) {
+                document.getElementById('inDate').value = tx.date;
+                document.getElementById('inTime').value = tx.time;
+                if(tx.type === 'income') document.getElementById('typeInc').checked = true;
+                else document.getElementById('typeExp').checked = true;
+                updateCategories();
+                document.getElementById('inCategory').value = tx.category;
+                document.getElementById('inItem').value = tx.item;
+                document.getElementById('inMethod').value = tx.method;
+                document.getElementById('inSettled').checked = tx.settled;
+                document.getElementById('inNote').value = tx.note || '';
+                
+                // 產生輸入框並填值
+                generateShareInputs();
+                const inputs = document.querySelectorAll('.share-input');
+                inputs.forEach(inp => {
+                    const member = inp.dataset.member;
+                    inp.value = tx.shares[member] || 0; // 若成員是後來加的，設為0
+                });
+                calculateTotal();
+
+                // 填入付款人
+                const payerSelect = document.getElementById('inPayer');
+                if(tx.payer === 'Split' || currentData.members.includes(tx.payer)) {
+                     payerSelect.value = tx.payer;
+                }
+            }
+        } else {
+            // --- 新增模式 ---
+            modalTitle.innerText = "📝 新增記帳";
+            btnSave.innerText = "儲存";
+            generateShareInputs();
+        }
+
+        new bootstrap.Modal(document.getElementById('addModal')).show();
+    }
+
+    // 產生動態輸入框 (共用函式)
+    function generateShareInputs() {
+        const container = document.getElementById('member-share-inputs');
+        container.innerHTML = '';
+        const payerSelect = document.getElementById('inPayer');
+        
+        // 記住原本選的付款人(編輯時用到)
+        const currentPayer = payerSelect.value;
+        payerSelect.innerHTML = '<option value="Split">各自付 (AA制)</option>';
+
+        currentData.members.forEach(m => {
+            const col = document.createElement('div');
+            col.className = 'col-6';
+            col.innerHTML = `<label class="small text-muted">${m}</label><div class="input-group input-group-sm"><span class="input-group-text bg-white"><i class="fa-solid fa-user"></i></span><input type="number" class="form-control share-input" data-member="${m}" value="0" min="0"></div>`;
+            container.appendChild(col);
+            const opt = document.createElement('option');
+            opt.value = m; opt.innerText = m + ' 墊付';
+            payerSelect.appendChild(opt);
+        });
+        
+        // 重新選回 (如果還在清單內)
+        if(currentPayer) payerSelect.value = currentPayer;
+        else payerSelect.value = currentData.user; // 預設選自己
+
+        document.querySelectorAll('.share-input').forEach(inp => inp.addEventListener('input', calculateTotal));
+    }
+
+    function saveTransaction() {
+        const type = document.querySelector('input[name="type"]:checked').value;
+        const inputs = document.querySelectorAll('.share-input');
+        let shares = {}, total = 0;
+        inputs.forEach(inp => { const val = Number(inp.value); shares[inp.dataset.member] = val; total += val; });
+        
+        if(total === 0) { alert('金額不能為0'); return; }
+
+        const txData = {
+            id: editingId ? editingId : Date.now(), // 若是編輯，保留原本ID
+            date: document.getElementById('inDate').value,
+            time: document.getElementById('inTime').value,
+            type: type, category: document.getElementById('inCategory').value,
+            item: document.getElementById('inItem').value,
+            shares: shares, total: total,
+            payer: document.getElementById('inPayer').value,
+            method: document.getElementById('inMethod').value,
+            settled: document.getElementById('inSettled').checked,
+            note: document.getElementById('inNote').value
+        };
+
+        if (editingId) {
+            // 更新舊資料
+            const idx = currentData.transactions.findIndex(t => t.id === editingId);
+            if(idx !== -1) currentData.transactions[idx] = txData;
+            showToast("已更新資料！");
+        } else {
+            // 新增資料
+            currentData.transactions.push(txData);
+            showToast("記帳成功！");
+        }
+
+        bootstrap.Modal.getInstance(document.getElementById('addModal')).hide();
+        renderAll();
+    }
+
+    // 刪除功能
+    function deleteTransaction(id) {
+        if(confirm("確定要刪除這筆資料嗎？")) {
+            currentData.transactions = currentData.transactions.filter(t => t.id !== id);
+            renderAll();
+            showToast("已刪除資料");
+        }
+    }
+
     function toggleSettle(id) {
         const idx = currentData.transactions.findIndex(t => t.id === id);
         if (idx !== -1) { currentData.transactions[idx].settled = true; showToast("✅ 已結清！"); renderDashboard(); }
     }
 
+    // --- 表格渲染 ---
     let filterType = 'all';
     function filterLedger(type, btn) {
         filterType = type;
@@ -466,35 +662,31 @@
         if (filterType === 'unsettled') list = list.filter(t => !t.settled);
         if(list.length === 0) document.getElementById('ledger-empty-msg').classList.remove('hidden');
         else document.getElementById('ledger-empty-msg').classList.add('hidden');
+        
         list.forEach(t => {
             const tr = document.createElement('tr');
             const color = t.type === 'income' ? 'text-success' : 'text-danger';
             const sign = t.type === 'income' ? '+' : '-';
             const status = t.settled ? '<span class="badge bg-success">已結清</span>' : '<span class="badge bg-warning text-dark">未結清</span>';
-            tr.innerHTML = `<td>${t.date}</td><td class="small text-muted">${t.time}</td><td><span class="badge bg-light text-dark border">${t.category}</span></td><td>${t.item} <div class="small text-muted fst-italic">${t.note}</div></td><td class="${color} fw-bold">${sign}${t.total}</td><td>${t.payer === 'Split' ? '各自' : t.payer}</td><td class="small">${formatShares(t.shares)}</td><td>${status}</td>`;
+            
+            tr.innerHTML = `
+                <td>
+                    <i class="fa-solid fa-pen-to-square text-primary action-btn me-2" onclick="openAddModal(${t.id})" title="編輯"></i>
+                    <i class="fa-solid fa-trash text-danger action-btn" onclick="deleteTransaction(${t.id})" title="刪除"></i>
+                </td>
+                <td>${t.date}</td>
+                <td><span class="badge bg-light text-dark border">${t.category}</span></td>
+                <td>${t.item} <div class="small text-muted fst-italic">${t.note}</div></td>
+                <td class="${color} fw-bold">${sign}${t.total}</td>
+                <td>${t.payer === 'Split' ? '各自' : t.payer}</td>
+                <td class="small">${formatShares(t.shares)}</td>
+                <td>${status}</td>
+            `;
             tbody.appendChild(tr);
         });
     }
 
-    function openAddModal() {
-        const container = document.getElementById('member-share-inputs');
-        container.innerHTML = '';
-        const payerSelect = document.getElementById('inPayer');
-        payerSelect.innerHTML = '<option value="Split">各自付 (AA制)</option>';
-        currentData.members.forEach(m => {
-            const col = document.createElement('div');
-            col.className = 'col-6';
-            col.innerHTML = `<label class="small text-muted">${m}</label><div class="input-group input-group-sm"><span class="input-group-text bg-white"><i class="fa-solid fa-user"></i></span><input type="number" class="form-control share-input" data-member="${m}" value="0" min="0"></div>`;
-            container.appendChild(col);
-            const opt = document.createElement('option');
-            opt.value = m; opt.innerText = m + ' 墊付';
-            if(m === currentData.user) opt.selected = true;
-            payerSelect.appendChild(opt);
-        });
-        document.querySelectorAll('.share-input').forEach(inp => inp.addEventListener('input', calculateTotal));
-        new bootstrap.Modal(document.getElementById('addModal')).show();
-    }
-
+    // --- 輔助功能 ---
     function calculateTotal() {
         let sum = 0;
         document.querySelectorAll('.share-input').forEach(inp => sum += Number(inp.value));
@@ -513,32 +705,7 @@
         }
     }
 
-    function saveTransaction() {
-        const type = document.querySelector('input[name="type"]:checked').value;
-        const inputs = document.querySelectorAll('.share-input');
-        let shares = {}, total = 0;
-        inputs.forEach(inp => { const val = Number(inp.value); shares[inp.dataset.member] = val; total += val; });
-        if(total === 0) { alert('金額不能為0'); return; }
-        const newTx = {
-            id: Date.now(),
-            date: document.getElementById('inDate').value,
-            time: document.getElementById('inTime').value,
-            type: type, category: document.getElementById('inCategory').value,
-            item: document.getElementById('inItem').value,
-            shares: shares, total: total,
-            payer: document.getElementById('inPayer').value,
-            settled: document.getElementById('inSettled').checked,
-            note: document.getElementById('inNote').value
-        };
-        currentData.transactions.push(newTx);
-        bootstrap.Modal.getInstance(document.getElementById('addModal')).hide();
-        document.getElementById('addForm').reset();
-        document.getElementById('displayTotal').innerText = '0';
-        renderAll();
-        showToast("記帳成功！");
-    }
-
-    // --- 成員管理 (修復黑屏關鍵點) ---
+    // 成員管理 (修復黑屏)
     function renderMemberList() {
         const list = document.getElementById('member-list-display');
         list.innerHTML = '';
@@ -550,10 +717,7 @@
         document.getElementById('member-count').innerText = currentData.members.length;
     }
 
-    function openMemberModal() {
-        renderMemberList(); // 只畫畫面
-        new bootstrap.Modal(document.getElementById('memberModal')).show(); // 只開一次
-    }
+    function openMemberModal() { renderMemberList(); new bootstrap.Modal(document.getElementById('memberModal')).show(); }
 
     function addNewMember() {
         const nameInput = document.getElementById('newMemberName');
@@ -561,17 +725,13 @@
         if(name && !currentData.members.includes(name)) {
             currentData.members.push(name);
             nameInput.value = '';
-            renderMemberList(); // 修正：這裡只更新 HTML，不重新開 Modal
+            renderMemberList();
             renderMemberOptions();
             showToast(`成員 ${name} 已加入！`);
-        } else if (currentData.members.includes(name)) {
-            alert('該成員已在群組中');
-        }
+        } else if (currentData.members.includes(name)) { alert('該成員已在群組中'); }
     }
     
-    function renderMemberOptions() {
-        document.getElementById('member-count').innerText = currentData.members.length;
-    }
+    function renderMemberOptions() { document.getElementById('member-count').innerText = currentData.members.length; }
 
     function updateCategories() {
         const type = document.querySelector('input[name="type"]:checked').value;
@@ -580,15 +740,9 @@
         (type === 'income' ? incCats : expCats).forEach(c => sel.innerHTML += `<option value="${c}">${c}</option>`);
     }
 
-    function formatShares(sharesObj) {
-        return Object.entries(sharesObj).filter(([k,v]) => v > 0).map(([k,v]) => `${k}:${v}`).join(', ');
-    }
-    function copyCode() {
-        navigator.clipboard.writeText(document.getElementById('nav-invite-code').innerText).then(() => showToast("邀請碼已複製！"));
-    }
-    function showToast(msg) {
-        Toastify({ text: msg, duration: 3000, style: { background: "linear-gradient(to right, #00b09b, #96c93d)" } }).showToast();
-    }
+    function formatShares(sharesObj) { return Object.entries(sharesObj).filter(([k,v]) => v > 0).map(([k,v]) => `${k}:${v}`).join(', '); }
+    function copyCode() { navigator.clipboard.writeText(document.getElementById('nav-invite-code').innerText).then(() => showToast("邀請碼已複製！")); }
+    function showToast(msg) { Toastify({ text: msg, duration: 3000, style: { background: "linear-gradient(to right, #00b09b, #96c93d)" } }).showToast(); }
 </script>
 </body>
 </html>
