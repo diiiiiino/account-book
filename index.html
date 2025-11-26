@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Co-Ledger V4 協作記帳</title>
+    <title>Co-Ledger V5 (修復版)</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
@@ -59,7 +59,7 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">邀請代碼</label>
-                        <input type="text" class="form-control text-uppercase" id="joinCode" placeholder="輸入朋友給的代碼">
+                        <input type="text" class="form-control text-uppercase" id="joinCode" placeholder="輸入代碼">
                     </div>
                     <div class="d-grid">
                         <button class="btn btn-success btn-lg" onclick="initLedger('join')">🚀 加入群組</button>
@@ -77,7 +77,7 @@
         <div class="container">
             <a class="navbar-brand" href="#"><i class="fa-solid fa-sack-dollar"></i> Co-Ledger</a>
             
-            <!-- 邀請代碼顯示區 (點擊複製) -->
+            <!-- 邀請代碼 -->
             <div class="d-none d-md-flex align-items-center text-white ms-3 px-3 py-1 rounded invite-badge" onclick="copyCode()" title="點擊複製連結">
                 <small class="me-2">邀請碼:</small>
                 <span id="nav-invite-code" class="fw-bold font-monospace">Loading</span>
@@ -172,7 +172,7 @@
                 </div>
             </div>
 
-            <!-- 重點功能: 未結清項目 (只顯示未結清) -->
+            <!-- 未結清項目 -->
             <div class="card border-0 shadow-sm mb-5 border-start border-4 border-danger">
                 <div class="card-header bg-white d-flex justify-content-between align-items-center">
                     <h5 class="mb-0 text-danger"><i class="fa-solid fa-circle-exclamation"></i> 未結清項目</h5>
@@ -190,9 +190,7 @@
                                 <th>分攤詳情</th>
                             </tr>
                         </thead>
-                        <tbody id="unsettled-list">
-                            <!-- JS 填入 -->
-                        </tbody>
+                        <tbody id="unsettled-list"></tbody>
                     </table>
                 </div>
                 <div class="card-body text-center text-muted py-5" id="unsettled-empty-msg">
@@ -202,7 +200,7 @@
             </div>
         </div>
 
-        <!-- === 視圖 2: 詳細收支表 (Full Ledger) === -->
+        <!-- === 視圖 2: 詳細收支表 === -->
         <div id="view-ledger" class="hidden">
             <div class="card border-0 shadow-sm">
                 <div class="card-header bg-white d-flex justify-content-between align-items-center">
@@ -223,13 +221,11 @@
                                 <th>事項</th>
                                 <th>總金額</th>
                                 <th>墊付人</th>
-                                <th>權責分攤 (誰花的)</th>
+                                <th>權責分攤</th>
                                 <th>狀態</th>
                             </tr>
                         </thead>
-                        <tbody id="full-ledger-list">
-                            <!-- JS 填入 -->
-                        </tbody>
+                        <tbody id="full-ledger-list"></tbody>
                     </table>
                 </div>
                 <div id="ledger-empty-msg" class="text-center py-5 text-muted hidden">
@@ -241,7 +237,7 @@
     </div>
 </div>
 
-<!-- Modal: 新增記帳 (動態成員版) -->
+<!-- Modal: 新增記帳 -->
 <div class="modal fade" id="addModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -251,52 +247,32 @@
             </div>
             <div class="modal-body">
                 <form id="addForm">
-                    <!-- 收支切換 -->
                     <div class="btn-group w-100 mb-3">
                         <input type="radio" class="btn-check" name="type" id="typeExp" value="expense" checked onchange="updateCategories()">
                         <label class="btn btn-outline-danger" for="typeExp">支出</label>
                         <input type="radio" class="btn-check" name="type" id="typeInc" value="income" onchange="updateCategories()">
                         <label class="btn btn-outline-success" for="typeInc">收入</label>
                     </div>
-
                     <div class="row g-2 mb-3">
-                        <div class="col-6">
-                            <label class="form-label">日期</label>
-                            <input type="date" class="form-control" id="inDate">
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label">時間</label>
-                            <input type="time" class="form-control" id="inTime">
-                        </div>
+                        <div class="col-6"><label class="form-label">日期</label><input type="date" class="form-control" id="inDate"></div>
+                        <div class="col-6"><label class="form-label">時間</label><input type="time" class="form-control" id="inTime"></div>
                     </div>
+                    <div class="mb-3"><label class="form-label">類別</label><select class="form-select" id="inCategory"></select></div>
+                    <div class="mb-3"><label class="form-label">事項</label><input type="text" class="form-control" id="inItem" placeholder="例如: 晚餐"></div>
                     
-                    <div class="mb-3">
-                        <label class="form-label">類別</label>
-                        <select class="form-select" id="inCategory"></select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">事項</label>
-                        <input type="text" class="form-control" id="inItem" placeholder="例如: 晚餐">
-                    </div>
-
-                    <!-- 動態生成：金額權責分配 -->
                     <div class="card bg-light p-3 mb-3 border">
                         <div class="d-flex justify-content-between mb-2">
                             <label class="fw-bold text-dark">權責分配 (誰花的?)</label>
                             <button type="button" class="btn btn-sm btn-outline-secondary" onclick="splitEvenly()">平均分攤</button>
                         </div>
-                        <div id="member-share-inputs" class="row g-2">
-                            <!-- JS 會根據 members 陣列在這裡產生 input -->
-                        </div>
+                        <div id="member-share-inputs" class="row g-2"></div>
                         <div class="text-end mt-2 fw-bold text-primary">總金額: <span id="displayTotal">0</span></div>
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label">付款方式 (誰墊付?)</label>
                         <div class="input-group">
-                            <select class="form-select" id="inPayer">
-                                <!-- JS 動態填入成員 -->
-                            </select>
+                            <select class="form-select" id="inPayer"></select>
                             <select class="form-select" id="inMethod" style="max-width: 100px;">
                                 <option value="現金">現金</option>
                                 <option value="刷卡">刷卡</option>
@@ -304,15 +280,11 @@
                             </select>
                         </div>
                     </div>
-
                     <div class="form-check form-switch mb-3">
                         <input class="form-check-input" type="checkbox" id="inSettled">
                         <label class="form-check-label" for="inSettled">是否已結清</label>
                     </div>
-                    
-                    <div class="mb-3">
-                        <textarea class="form-control" id="inNote" rows="2" placeholder="備註..."></textarea>
-                    </div>
+                    <div class="mb-3"><textarea class="form-control" id="inNote" rows="2" placeholder="備註..."></textarea></div>
                 </form>
             </div>
             <div class="modal-footer">
@@ -344,82 +316,58 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-    // --- 核心資料 ---
-    let currentData = {
-        user: '',
-        code: '',
-        members: [], 
-        transactions: [] // 初始為空！
-    };
-
+    // --- 資料結構 ---
+    let currentData = { user: '', code: '', members: [], transactions: [] };
     const expCats = ['飲食', '日常', '交通', '娛樂', '住宿', '其他', '未分類'];
     const incCats = ['薪水', '零用錢', '撲滿', '利息', '未分類'];
 
-    // --- 初始化與登入 ---
+    // --- 初始化 ---
     function initLedger(mode) {
         let name = '';
         if (mode === 'create') {
             name = document.getElementById('createName').value.trim();
             if(!name) return alert('請輸入名字');
-            // 建立新帳本：生成代碼
-            currentData.code = generateCode();
+            currentData.code = Math.random().toString(36).substring(2, 8).toUpperCase();
             currentData.members = [name]; 
         } else {
             name = document.getElementById('joinName').value.trim();
             const code = document.getElementById('joinCode').value.trim();
             if(!name || !code) return alert('請輸入名字與代碼');
-            
-            // 加入現有帳本
             currentData.code = code.toUpperCase();
-            currentData.members = ['Jun', name]; // 模擬: 假設已經有 Jun
+            currentData.members = ['Jun', name]; 
             if(!currentData.members.includes(name)) currentData.members.push(name);
         }
-
         currentData.user = name;
         enterApp();
-    }
-
-    function generateCode() {
-        return Math.random().toString(36).substring(2, 8).toUpperCase();
     }
 
     function enterApp() {
         document.getElementById('login-section').classList.add('hidden');
         document.getElementById('app-section').classList.remove('hidden');
         document.getElementById('user-display').innerText = currentData.user;
-        document.getElementById('nav-invite-code').innerText = currentData.code; // 顯示邀請碼
-        
-        // 初始化日期
+        document.getElementById('nav-invite-code').innerText = currentData.code;
         document.getElementById('inDate').valueAsDate = new Date();
         document.getElementById('inTime').value = new Date().toTimeString().slice(0,5);
-
         renderAll();
         updateCategories();
         showToast(`歡迎！您的邀請碼是 ${currentData.code}`);
     }
 
-    // --- 視圖切換 ---
     function switchView(viewName, navEl) {
         document.getElementById('view-dashboard').classList.add('hidden');
         document.getElementById('view-ledger').classList.add('hidden');
-        
-        // 移除 active class
         document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
         if(navEl) navEl.classList.add('active');
-
         document.getElementById(`view-${viewName}`).classList.remove('hidden');
-        
-        if(viewName === 'ledger') renderFullTable();
-        else renderDashboard();
+        if(viewName === 'ledger') renderFullTable(); else renderDashboard();
     }
 
-    // --- 核心渲染 ---
+    // --- 渲染邏輯 ---
     function renderAll() {
         renderDashboard();
         renderMemberOptions();
     }
 
-    // 1. 儀表板渲染
     function renderDashboard() {
         let totalInc = 0, totalExp = 0, settledInc = 0, settledExp = 0, unsetInc = 0, unsetExp = 0;
         let debtMap = {}; 
@@ -431,13 +379,10 @@
 
         currentData.transactions.forEach(t => {
             if(t.type === 'income') totalInc += t.total; else totalExp += t.total;
-            
             if(t.settled) {
                 if(t.type === 'income') settledInc += t.total; else settledExp += t.total;
             } else {
                 if(t.type === 'income') unsetInc += t.total; else unsetExp += t.total;
-                
-                // 未結清列表
                 hasUnsettled = true;
                 const row = document.createElement('tr');
                 row.innerHTML = `
@@ -450,13 +395,10 @@
                 `;
                 unsettledTbody.appendChild(row);
 
-                // 債務計算
-                if (t.type === 'expense') {
-                    if (t.payer !== 'Split') {
-                        if(debtMap[t.payer] !== undefined) debtMap[t.payer] += t.total; 
-                        for (const [member, share] of Object.entries(t.shares)) {
-                            if(debtMap[member] !== undefined) debtMap[member] -= share; 
-                        }
+                if (t.type === 'expense' && t.payer !== 'Split') {
+                    if(debtMap[t.payer] !== undefined) debtMap[t.payer] += t.total; 
+                    for (const [member, share] of Object.entries(t.shares)) {
+                        if(debtMap[member] !== undefined) debtMap[member] -= share; 
                     }
                 }
             }
@@ -467,7 +409,6 @@
         document.getElementById('dash-settled').innerText = `$ ${settledInc - settledExp}`;
         document.getElementById('dash-unsettled').innerText = `$ ${unsetInc - unsetExp}`;
 
-        // 債務顯示
         const debtEl = document.getElementById('dash-debt');
         let debtHtml = '';
         let noDebt = true;
@@ -476,66 +417,39 @@
             else if (val < 0) { debtHtml += `<div class="text-danger">${m} 應付 $${Math.abs(val)}</div>`; noDebt = false; }
         }
         debtEl.innerHTML = noDebt ? '<span class="text-success">無欠款</span>' : debtHtml;
-
-        renderChart(); // 畫圖
+        renderChart();
     }
 
-    // 2. 圖表 (根據真實數據)
     let myChart = null;
     function renderChart() {
         const ctx = document.getElementById('mainChart').getContext('2d');
         if(myChart) myChart.destroy();
-
-        // 準備近6個月標籤
-        const labels = [];
-        const dataInc = [0,0,0,0,0,0];
-        const dataExp = [0,0,0,0,0,0];
-        
+        const labels = [], dataInc = [0,0,0,0,0,0], dataExp = [0,0,0,0,0,0];
         const today = new Date();
         for(let i=5; i>=0; i--) {
             const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
             labels.push(`${d.getMonth()+1}月`);
         }
-
-        // 統計數據
         currentData.transactions.forEach(t => {
             const tDate = new Date(t.date);
-            // 簡單判斷月份差
             const diffMonth = (today.getFullYear() - tDate.getFullYear()) * 12 + (today.getMonth() - tDate.getMonth());
             if(diffMonth >= 0 && diffMonth <= 5) {
                 const index = 5 - diffMonth;
-                if(t.type === 'income') dataInc[index] += t.total;
-                else dataExp[index] += t.total;
+                if(t.type === 'income') dataInc[index] += t.total; else dataExp[index] += t.total;
             }
         });
-
         myChart = new Chart(ctx, {
             type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [
-                    { label: '支出', data: dataExp, backgroundColor: '#dc3545', borderRadius: 5 },
-                    { label: '收入', data: dataInc, backgroundColor: '#198754', borderRadius: 5 }
-                ]
-            },
-            options: { 
-                responsive: true, 
-                maintainAspectRatio: false,
-                scales: { y: { beginAtZero: true } }
-            }
+            data: { labels: labels, datasets: [{ label: '支出', data: dataExp, backgroundColor: '#dc3545', borderRadius: 5 }, { label: '收入', data: dataInc, backgroundColor: '#198754', borderRadius: 5 }] },
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
         });
     }
 
     function toggleSettle(id) {
         const idx = currentData.transactions.findIndex(t => t.id === id);
-        if (idx !== -1) {
-            currentData.transactions[idx].settled = true;
-            showToast("✅ 已標記為結清！");
-            renderDashboard();
-        }
+        if (idx !== -1) { currentData.transactions[idx].settled = true; showToast("✅ 已結清！"); renderDashboard(); }
     }
 
-    // 3. 詳細收支表
     let filterType = 'all';
     function filterLedger(type, btn) {
         filterType = type;
@@ -547,71 +461,37 @@
     function renderFullTable() {
         const tbody = document.getElementById('full-ledger-list');
         tbody.innerHTML = '';
-        
         let list = currentData.transactions.sort((a,b) => new Date(b.date) - new Date(a.date));
         if (filterType === 'settled') list = list.filter(t => t.settled);
         if (filterType === 'unsettled') list = list.filter(t => !t.settled);
-
-        if(list.length === 0) {
-            document.getElementById('ledger-empty-msg').classList.remove('hidden');
-        } else {
-            document.getElementById('ledger-empty-msg').classList.add('hidden');
-        }
-
+        if(list.length === 0) document.getElementById('ledger-empty-msg').classList.remove('hidden');
+        else document.getElementById('ledger-empty-msg').classList.add('hidden');
         list.forEach(t => {
             const tr = document.createElement('tr');
             const color = t.type === 'income' ? 'text-success' : 'text-danger';
             const sign = t.type === 'income' ? '+' : '-';
-            const status = t.settled 
-                ? '<span class="badge bg-success">已結清</span>' 
-                : '<span class="badge bg-warning text-dark">未結清</span>';
-            
-            tr.innerHTML = `
-                <td>${t.date}</td>
-                <td class="small text-muted">${t.time}</td>
-                <td><span class="badge bg-light text-dark border">${t.category}</span></td>
-                <td>${t.item} <div class="small text-muted fst-italic">${t.note}</div></td>
-                <td class="${color} fw-bold">${sign}${t.total}</td>
-                <td>${t.payer === 'Split' ? '各自' : t.payer}</td>
-                <td class="small">${formatShares(t.shares)}</td>
-                <td>${status}</td>
-            `;
+            const status = t.settled ? '<span class="badge bg-success">已結清</span>' : '<span class="badge bg-warning text-dark">未結清</span>';
+            tr.innerHTML = `<td>${t.date}</td><td class="small text-muted">${t.time}</td><td><span class="badge bg-light text-dark border">${t.category}</span></td><td>${t.item} <div class="small text-muted fst-italic">${t.note}</div></td><td class="${color} fw-bold">${sign}${t.total}</td><td>${t.payer === 'Split' ? '各自' : t.payer}</td><td class="small">${formatShares(t.shares)}</td><td>${status}</td>`;
             tbody.appendChild(tr);
         });
     }
 
-    // --- Modal 邏輯 ---
     function openAddModal() {
         const container = document.getElementById('member-share-inputs');
         container.innerHTML = '';
         const payerSelect = document.getElementById('inPayer');
         payerSelect.innerHTML = '<option value="Split">各自付 (AA制)</option>';
-
         currentData.members.forEach(m => {
-            // 金額輸入
             const col = document.createElement('div');
             col.className = 'col-6';
-            col.innerHTML = `
-                <label class="small text-muted">${m}</label>
-                <div class="input-group input-group-sm">
-                    <span class="input-group-text bg-white"><i class="fa-solid fa-user"></i></span>
-                    <input type="number" class="form-control share-input" data-member="${m}" value="0" min="0">
-                </div>
-            `;
+            col.innerHTML = `<label class="small text-muted">${m}</label><div class="input-group input-group-sm"><span class="input-group-text bg-white"><i class="fa-solid fa-user"></i></span><input type="number" class="form-control share-input" data-member="${m}" value="0" min="0"></div>`;
             container.appendChild(col);
-
-            // 付款人選項
             const opt = document.createElement('option');
-            opt.value = m;
-            opt.innerText = m + ' 墊付';
+            opt.value = m; opt.innerText = m + ' 墊付';
             if(m === currentData.user) opt.selected = true;
             payerSelect.appendChild(opt);
         });
-
-        document.querySelectorAll('.share-input').forEach(inp => {
-            inp.addEventListener('input', calculateTotal);
-        });
-        
+        document.querySelectorAll('.share-input').forEach(inp => inp.addEventListener('input', calculateTotal));
         new bootstrap.Modal(document.getElementById('addModal')).show();
     }
 
@@ -628,9 +508,7 @@
         if(total && !isNaN(total)) {
             const per = Math.floor(total / inputs.length);
             let rem = total - (per * inputs.length);
-            inputs.forEach((inp, idx) => {
-                inp.value = (idx === 0) ? per + rem : per;
-            });
+            inputs.forEach((inp, idx) => { inp.value = (idx === 0) ? per + rem : per; });
             calculateTotal();
         }
     }
@@ -638,31 +516,20 @@
     function saveTransaction() {
         const type = document.querySelector('input[name="type"]:checked').value;
         const inputs = document.querySelectorAll('.share-input');
-        let shares = {};
-        let total = 0;
-
-        inputs.forEach(inp => {
-            const val = Number(inp.value);
-            shares[inp.dataset.member] = val;
-            total += val;
-        });
-
+        let shares = {}, total = 0;
+        inputs.forEach(inp => { const val = Number(inp.value); shares[inp.dataset.member] = val; total += val; });
         if(total === 0) { alert('金額不能為0'); return; }
-
         const newTx = {
             id: Date.now(),
             date: document.getElementById('inDate').value,
             time: document.getElementById('inTime').value,
-            type: type,
-            category: document.getElementById('inCategory').value,
+            type: type, category: document.getElementById('inCategory').value,
             item: document.getElementById('inItem').value,
-            shares: shares,
-            total: total,
+            shares: shares, total: total,
             payer: document.getElementById('inPayer').value,
             settled: document.getElementById('inSettled').checked,
             note: document.getElementById('inNote').value
         };
-
         currentData.transactions.push(newTx);
         bootstrap.Modal.getInstance(document.getElementById('addModal')).hide();
         document.getElementById('addForm').reset();
@@ -671,8 +538,8 @@
         showToast("記帳成功！");
     }
 
-    // --- 成員管理 ---
-    function openMemberModal() {
+    // --- 成員管理 (修復黑屏關鍵點) ---
+    function renderMemberList() {
         const list = document.getElementById('member-list-display');
         list.innerHTML = '';
         currentData.members.forEach(m => {
@@ -681,17 +548,24 @@
             </li>`;
         });
         document.getElementById('member-count').innerText = currentData.members.length;
-        new bootstrap.Modal(document.getElementById('memberModal')).show();
+    }
+
+    function openMemberModal() {
+        renderMemberList(); // 只畫畫面
+        new bootstrap.Modal(document.getElementById('memberModal')).show(); // 只開一次
     }
 
     function addNewMember() {
-        const name = document.getElementById('newMemberName').value.trim();
+        const nameInput = document.getElementById('newMemberName');
+        const name = nameInput.value.trim();
         if(name && !currentData.members.includes(name)) {
             currentData.members.push(name);
-            document.getElementById('newMemberName').value = '';
-            openMemberModal();
+            nameInput.value = '';
+            renderMemberList(); // 修正：這裡只更新 HTML，不重新開 Modal
             renderMemberOptions();
             showToast(`成員 ${name} 已加入！`);
+        } else if (currentData.members.includes(name)) {
+            alert('該成員已在群組中');
         }
     }
     
@@ -699,25 +573,19 @@
         document.getElementById('member-count').innerText = currentData.members.length;
     }
 
-    // --- 輔助功能 ---
     function updateCategories() {
         const type = document.querySelector('input[name="type"]:checked').value;
         const sel = document.getElementById('inCategory');
         sel.innerHTML = '';
-        (type === 'income' ? incCats : expCats).forEach(c => {
-            sel.innerHTML += `<option value="${c}">${c}</option>`;
-        });
+        (type === 'income' ? incCats : expCats).forEach(c => sel.innerHTML += `<option value="${c}">${c}</option>`);
     }
 
     function formatShares(sharesObj) {
         return Object.entries(sharesObj).filter(([k,v]) => v > 0).map(([k,v]) => `${k}:${v}`).join(', ');
     }
-
     function copyCode() {
-        const code = document.getElementById('nav-invite-code').innerText;
-        navigator.clipboard.writeText(code).then(() => showToast("邀請碼已複製！"));
+        navigator.clipboard.writeText(document.getElementById('nav-invite-code').innerText).then(() => showToast("邀請碼已複製！"));
     }
-
     function showToast(msg) {
         Toastify({ text: msg, duration: 3000, style: { background: "linear-gradient(to right, #00b09b, #96c93d)" } }).showToast();
     }
